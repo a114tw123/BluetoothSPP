@@ -1,0 +1,3 @@
+rootProject.name='BluetoothSPP'
+include ':app'
+include ':bluetoothsppkit'
