@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.IBinder
-import android.text.*
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -29,24 +28,28 @@ import java.nio.charset.Charset
 
 
 class MainActivity : AppCompatActivity(){
-    lateinit var sppManager: BluetoothSPPManager
-    var socketStream: SocketStream?=null
+    lateinit var sppManager: BluetoothSPPManager//宣告並延遲初始化sppManager
+    var socketStream: SocketStream?=null//宣告socketStream並初始化為null
     lateinit var chatAdapter:ChatAdapter
     var chatList= arrayListOf<ChatModel>()
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        val permissonList=arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
-        if(ContextCompat.checkSelfPermission(this, permissonList[0]) != PackageManager.PERMISSION_GRANTED||
-            ContextCompat.checkSelfPermission(this, permissonList[1]) != PackageManager.PERMISSION_GRANTED){
-            ActivityCompat.requestPermissions(this, permissonList,1)
+        //權限請求
+        val permissionList=arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION)
+        if(ContextCompat.checkSelfPermission(this, permissionList[0]) != PackageManager.PERMISSION_GRANTED||
+            ContextCompat.checkSelfPermission(this, permissionList[1]) != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(this, permissionList,1)
         }
+//      sppManager初始化，並設定事件監聽器
         sppManager= BluetoothSPPManager(this)
         sppManager.setDeviceImp(ibluetoothDevice)
         sppManager.setStateImp(ibluetoothState)
+//      顯示已綁定的裝置
         sppManager.boundDeviceShow=true
+//      藍牙開關switch=藍芽開啟狀態
         sw_blt.isChecked=sppManager.getState()
-
+//      藍牙開關switch點擊事件，開啟或關閉藍牙
         sw_blt.setOnClickListener {
             if (sw_blt.isChecked){
                 sppManager.enable()
@@ -54,6 +57,7 @@ class MainActivity : AppCompatActivity(){
                 sppManager.disable()
             }
         }
+//      等待連線開關switch點擊事件，開啟後讓手機可被其他設備主動連線
         sw_connect.setOnClickListener{
             if (sw_connect.isChecked){
                 sppManager.waitClientConnection()
@@ -61,6 +65,7 @@ class MainActivity : AppCompatActivity(){
                 sppManager.interruptClientConnection()
             }
         }
+//      連線按鈕點擊事件，若已連線則斷線，否則判斷是否開啟藍芽，若開啟則進行藍芽掃描5秒
         btn_connect.setOnClickListener {
             if(sppManager.isConnecting){
                 sppManager.disconnect()
@@ -75,11 +80,14 @@ class MainActivity : AppCompatActivity(){
             }
 
         }
+//      發送按鈕點擊事件
         btn_send.setOnClickListener {
             if (sppManager.isConnecting){
+//              如果已連線，暫存輸入欄文字並清空輸入欄
                 val msg=et_send.text.toString()
                 et_send.setText("")
                 if (msg!=""){
+//                  如果輸入內容不為空，發送資料，並將訊息加入聊天list並刷新畫面
                     socketStream?.send(msg)
                     chatList.add(ChatModel(msg,true))
                     chatAdapter.notifyDataSetChanged()
@@ -89,35 +97,39 @@ class MainActivity : AppCompatActivity(){
             }
 
         }
-
+//      初始化chatAdapter
         chatAdapter= ChatAdapter(chatList)
         rec_chat.adapter=chatAdapter
         rec_chat.layoutManager = LinearLayoutManager(this)
     }
+//  藍牙設備監聽器
     private val ibluetoothDevice=object :IBluetoothDevice{
-
+//      掃描藍牙裝置事件，每次掃描到藍牙設備就會觸發
         override fun onFound(device: BluetoothDevice) {
             Log.d(Host+Found,"${device.name},${device.address}")
         }
-
+//      連線成功事件，連線成功時觸發
         override fun onConnectionSuccessful(socket: BluetoothSocket) {
             Log.d(Host+SocketCreated, socket.remoteDevice.name)
+            //初始化socketStream並設定socket監聽器
             this@MainActivity.socketStream= SocketStream(socket)
             socketStream!!.setStreamImp(iSocketStream)
+            //更新畫面
             runOnUiThread{
                 tv_title.text=socket.remoteDevice.name.toString()
                 btn_connect.text="斷線"
             }
 
         }
-
+//      連線失敗事件，連線失敗時觸發
         override fun onConnectionFailed(e: Exception) {
             Log.d(Host+SocketFailed,e.toString())
 
         }
     }
-
+    //藍牙狀態監聽器
     private val ibluetoothState=object :IBluetoothState {
+        //藍牙狀態變化事件，藍牙被開啟或關閉時觸發
         override fun onAdapterStateChange(State: Int) {
             Log.d(Host + AdapterStateChange, "now:$State")
             when (State) {
@@ -129,20 +141,22 @@ class MainActivity : AppCompatActivity(){
                 }
             }
         }
-
+        //連線狀態變化事件，連線狀態變化時觸發
         override fun onConnectStateChange(State: Int, device: BluetoothDevice) {
             Log.d(Host + ConnectStateChange, "now:$State,deviceName:${device.name}")
         }
-
+        //掃描狀態變化事件，開始或停止掃描時觸發
         override fun onDiscoverStateChange(isDiscovering: Boolean) {
             Log.d(Host + Discover, isDiscovering.toString())
             if (!isDiscovering){
+                //當停止掃描時，建立一個裝置列表
                 val deviceList=ArrayList<BluetoothDevice>()
                 deviceList.addAll(sppManager.getDeviceSet())
                 val bltList=ArrayList<String>()
                 for (i in deviceList){
                     bltList.add("${i.name},${i.address}")
                 }
+                //用dialog顯示裝置列表，點擊後連線該裝置
                 AlertDialog.Builder(this@MainActivity)
                     .setTitle("選擇藍芽設備")
                     .setItems(bltList.toTypedArray()){ _, i ->
@@ -151,7 +165,7 @@ class MainActivity : AppCompatActivity(){
                     .show()
             }
         }
-
+        //等待連線狀態變化事件，開始或停止等待連線時觸發
         override fun onWaitingStateChange(isWaiting: Boolean) {
             Log.d(Host + WaitingConnection, isWaiting.toString())
 
@@ -160,9 +174,12 @@ class MainActivity : AppCompatActivity(){
             }
         }
     }
+    //藍牙通訊監聽器
     val iSocketStream=object : ISocketStream {
+        //接收資料事件
         override fun onReceived(data: ByteArray) {
             Log.d(Host+Received,data.toString(Charset.defaultCharset()))
+            //將收到的資料轉換成字串，並將訊息加入聊天list並刷新畫面
             val msg=data.toString(Charset.defaultCharset())
             chatList.add(ChatModel(msg,false))
             runOnUiThread {
@@ -170,10 +187,10 @@ class MainActivity : AppCompatActivity(){
             }
 
         }
-
+        //錯誤事件
         override fun onError(e: Exception) {
             Log.d(Host+SocketError,e.toString())
-
+            //發生錯誤刷新畫面
             runOnUiThread {
                 chatList.clear()
                 chatAdapter.notifyDataSetChanged()
@@ -198,7 +215,7 @@ class MainActivity : AppCompatActivity(){
         const val WaitingConnection="WaitingConnection"
         const val Received="Received"
     }
-
+//    下面都是鍵盤相關程式
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_ENTER) { /*隱藏軟鍵盤*/
             hideKeyboard(currentFocus?.windowToken)

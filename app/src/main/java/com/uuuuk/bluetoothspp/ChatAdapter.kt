@@ -21,6 +21,7 @@ class ChatAdapter(private var itemList: ArrayList<ChatModel>): RecyclerView.Adap
         return itemList.size
     }
     override fun getItemViewType(position: Int): Int {
+        //判斷item.src回傳ViewType
         if (itemList[position].src){
             return 1
         }else{
@@ -28,6 +29,7 @@ class ChatAdapter(private var itemList: ArrayList<ChatModel>): RecyclerView.Adap
         }
     }
     override fun onBindViewHolder(holder: ViewHolder, position: Int) {
+//      判斷ViewType決定對話筐顏色與對齊方向
         when(holder.mViewType){
             1->{
                 holder.tv_msg.setBackgroundColor(mContext.getColor(android.R.color.darker_gray))
