@@ -19,30 +19,31 @@ import kotlin.collections.ArrayList
 import kotlin.collections.HashSet
 
 class BluetoothSPPManager(context: Context) {
-    lateinit var mAdapter:BluetoothAdapter
+    lateinit var mAdapter: BluetoothAdapter
     private var mContext = context
     private var mIBluetoothState: IBluetoothState? = null
-    private var mIBluetoothDevice: IBluetoothDevice?=null
-    private var mSocket:BluetoothSocket?=null
-    private var mServerThread: ServerThread?=null
-    private var mClientThread: ClientThread?=null
-    private val SPP_UUID=UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+    private var mIBluetoothDevice: IBluetoothDevice? = null
+    private var mSocket: BluetoothSocket? = null
+    private var mServerThread: ServerThread? = null
+    private var mClientThread: ClientThread? = null
+    private val SPP_UUID = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
     var boundDeviceShow = false
     var isWaitingConnection: Boolean
-        get() =  mServerThread!=null
+        get() = mServerThread != null
         private set(value) {}
     var isConnecting: Boolean
         get() = mSocket?.isConnected == true
         private set(value) {}
     var stopNameList = ArrayList<String>()
     private val deviceSet = hashSetOf<BluetoothDevice>()
-    
+
     private val receiver = object : BroadcastReceiver() {
-        
+
         override fun onReceive(context: Context, intent: Intent) {
-            when(intent.action){
-                BluetoothDevice.ACTION_FOUND->{
-                    val device = intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
+            when (intent.action) {
+                BluetoothDevice.ACTION_FOUND -> {
+                    val device =
+                        intent.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
                     if (device != null) {
                         mIBluetoothDevice?.onFound(device)
                         deviceSet.add(device)
@@ -55,16 +56,16 @@ class BluetoothSPPManager(context: Context) {
                         }
                     }
                 }
-                BluetoothAdapter.ACTION_DISCOVERY_FINISHED->{
+                BluetoothAdapter.ACTION_DISCOVERY_FINISHED -> {
                     mIBluetoothState?.onDiscoverStateChange(false)
                 }
-                BluetoothAdapter.ACTION_DISCOVERY_STARTED->{
+                BluetoothAdapter.ACTION_DISCOVERY_STARTED -> {
                     mIBluetoothState?.onDiscoverStateChange(true)
                 }
-                BluetoothAdapter.ACTION_STATE_CHANGED->{
+                BluetoothAdapter.ACTION_STATE_CHANGED -> {
                     mIBluetoothState?.onAdapterStateChange(intent.extras?.get(BluetoothAdapter.EXTRA_STATE) as Int)
                 }
-                BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED->{
+                BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED -> {
                     mIBluetoothState?.onConnectStateChange(
                         intent.extras?.get(BluetoothAdapter.EXTRA_CONNECTION_STATE) as Int,
                         intent.extras?.get(BluetoothDevice.EXTRA_DEVICE) as BluetoothDevice
@@ -81,30 +82,32 @@ class BluetoothSPPManager(context: Context) {
         intentFilter.addAction(BluetoothAdapter.ACTION_STATE_CHANGED)
         intentFilter.addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
         mContext.registerReceiver(receiver, intentFilter)//注册广播接收者
-        mAdapter=BluetoothAdapter.getDefaultAdapter()
-    }
-    
-    fun setDeviceImp(mIBluetoothDevice: IBluetoothDevice){
-        this.mIBluetoothDevice=mIBluetoothDevice
-    }
-    fun setStateImp(mIBluetoothState: IBluetoothState){
-        this.mIBluetoothState=mIBluetoothState
-    }
-    
-    fun removeDeviceImp(){
-        this.mIBluetoothDevice=null
-    }
-    fun removeStateImp(){
-        this.mIBluetoothState=null
+        mAdapter = BluetoothAdapter.getDefaultAdapter()
     }
 
-    fun getDeviceSet():HashSet<BluetoothDevice>{
+    fun setDeviceImp(mIBluetoothDevice: IBluetoothDevice) {
+        this.mIBluetoothDevice = mIBluetoothDevice
+    }
+
+    fun setStateImp(mIBluetoothState: IBluetoothState) {
+        this.mIBluetoothState = mIBluetoothState
+    }
+
+    fun removeDeviceImp() {
+        this.mIBluetoothDevice = null
+    }
+
+    fun removeStateImp() {
+        this.mIBluetoothState = null
+    }
+
+    fun getDeviceSet(): HashSet<BluetoothDevice> {
         if (boundDeviceShow) {
             deviceSet.addAll(mAdapter.bondedDevices)
         }
         return deviceSet
     }
-    
+
     fun enable(): Boolean {
         return mAdapter.enable()
     }
@@ -130,7 +133,7 @@ class BluetoothSPPManager(context: Context) {
             else -> false
         }
     }
-    
+
     fun startSearch(): Boolean {
         deviceSet.clear()
         if (boundDeviceShow) {
@@ -176,92 +179,91 @@ class BluetoothSPPManager(context: Context) {
     fun stopSearch(): Boolean {
         return mAdapter.cancelDiscovery()
     }
-    
+
     fun connectDevice(device: BluetoothDevice) {
-        mClientThread=ClientThread(device)
-        mClientThread!!.start()
-    }
-    
-    fun connectDevice(deviceMac: String) {
-        val device = mAdapter.getRemoteDevice(deviceMac)
-        mClientThread=ClientThread(device)
+        mClientThread = ClientThread(device)
         mClientThread!!.start()
     }
 
-    fun connectDevice(deviceMac: ByteArray){
+    fun connectDevice(deviceMac: String) {
         val device = mAdapter.getRemoteDevice(deviceMac)
-        mClientThread=ClientThread(device)
+        mClientThread = ClientThread(device)
         mClientThread!!.start()
     }
-    
-    fun disconnect(){
-        if (mSocket!=null){
+
+    fun connectDevice(deviceMac: ByteArray) {
+        val device = mAdapter.getRemoteDevice(deviceMac)
+        mClientThread = ClientThread(device)
+        mClientThread!!.start()
+    }
+
+    fun disconnect() {
+        if (mSocket != null) {
             mSocket?.close()
-            mSocket=null
+            mSocket = null
             mIBluetoothDevice?.onConnectionFailed(Exception("disconnect"))
         }
     }
-    
-    fun waitClientConnection(){
-        mServerThread=ServerThread()
-        mServerThread!!.timeOut=0
+
+    fun waitClientConnection() {
+        mServerThread = ServerThread()
+        mServerThread!!.timeOut = 0
         mServerThread!!.start()
 
     }
 
-    fun waitClientConnection(milliSecond:Int){
-        mServerThread=ServerThread()
-        mServerThread!!.timeOut=milliSecond
+    fun waitClientConnection(milliSecond: Int) {
+        mServerThread = ServerThread()
+        mServerThread!!.timeOut = milliSecond
         mServerThread!!.start()
     }
 
-    fun interruptClientConnection(){
+    fun interruptClientConnection() {
         mServerThread?.serverSocket?.close()
-        isWaitingConnection=false
+        isWaitingConnection = false
         mIBluetoothState?.onWaitingStateChange(isWaitingConnection)
     }
 
-    inner class ServerThread :Thread(){
-        var timeOut=0
-        var serverSocket:BluetoothServerSocket?=null
+    inner class ServerThread : Thread() {
+        var timeOut = 0
+        var serverSocket: BluetoothServerSocket? = null
         override fun run() {
-            isWaitingConnection=true
+            isWaitingConnection = true
             mIBluetoothState?.onWaitingStateChange(isWaitingConnection)
-            serverSocket = mAdapter.listenUsingRfcommWithServiceRecord("",SPP_UUID)
-            if (timeOut>0){
+            serverSocket = mAdapter.listenUsingRfcommWithServiceRecord("", SPP_UUID)
+            if (timeOut > 0) {
                 try {
                     val socket = serverSocket!!.accept(timeOut)
-                    mSocket=socket
+                    mSocket = socket
                     mIBluetoothDevice?.onConnectionSuccessful(socket)
-                }catch (e:IOException){
+                } catch (e: IOException) {
                     mIBluetoothDevice?.onConnectionFailed(e)
                 }
-            }
-            else{
+            } else {
                 try {
                     val socket = serverSocket!!.accept()
-                    mSocket=socket
+                    mSocket = socket
                     mIBluetoothDevice?.onConnectionSuccessful(socket)
-                }catch (e:IOException){
+                } catch (e: IOException) {
                     mIBluetoothDevice?.onConnectionFailed(e)
                 }
             }
             serverSocket?.close()
-            mServerThread=null
+            mServerThread = null
             mIBluetoothState?.onWaitingStateChange(isWaitingConnection)
         }
     }
 
-    inner class ClientThread(private val device: BluetoothDevice):Thread(){
+    inner class ClientThread(private val device: BluetoothDevice) : Thread() {
         override fun run() {
             try {
                 val socket = device.createRfcommSocketToServiceRecord(SPP_UUID)
                 socket.connect()
-                mSocket=socket
+                mSocket = socket
                 mIBluetoothDevice?.onConnectionSuccessful(socket)
-            }catch (e:Exception){
+            } catch (e: Exception) {
                 mIBluetoothDevice?.onConnectionFailed(e)
-                mClientThread=null
+                mClientThread = null
             }
         }
     }
